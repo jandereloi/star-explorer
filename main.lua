@@ -97,8 +97,6 @@ local function createAsteroids()
 		asteroidHeigth = 97
 	end
 
-	print(pickAsteroid, asteroidWidth, asteroidHeigth)
-
 	local newAsteroid = display.newImageRect(mainGroup, sprite, pickAsteroid, asteroidWidth, asteroidHeigth)
 	table.insert(asteroidsTable, newAsteroid)
 	physics.addBody(newAsteroid, "dinamic", {radius=40, bounce=0.8})
@@ -126,7 +124,8 @@ end
 
 local function shipShooting()
 	local newLaser = display.newImageRect(mainGroup, sprite, 5, 14, 40)
-	physics.addBody(newLaser, "dinamic", {isSensor=true, isBullet=true})
+	physics.addBody(newLaser, "dinamic", {isSensor=true})
+	newLaser.isBullet = true
 	newLaser.myName = "laser"	
 
 	newLaser.x = ship.x
@@ -139,4 +138,86 @@ local function shipShooting()
 
 end
 
+local function shipMovement(event)
+	local ship = event.target
+	local phase = event.phase
+	if (phase == "began") then
+		display.currentStage:setFocus(ship)
+		ship.touchOffsetX = event.x - ship.x
+	elseif (phase == "moved") then
+		ship.x = event.x - ship.touchOffsetX
+	elseif (phase == "ended" or "cancelled") then
+		display.currentStage:setFocus(nil)
+	end
+
+	return true
+end
+
 ship:addEventListener("tap", shipShooting)
+ship:addEventListener("touch", shipMovement)
+
+local function gameLoop()
+	createAsteroids()
+
+	for i=#asteroidsTable, 1, -1 do
+		local thisAsteroid = asteroidsTable[i]
+
+		if (thisAsteroid.x < -100) or (thisAsteroid.x > display.contentWidth + 100) or (thisAsteroid.y < -100) or (thisAsteroid.y > display.contentHeight + 100) then
+			display.remove(thisAsteroid)
+			table.remove(asteroidsTable, i)
+		end
+	end
+end
+
+gameLoopTimer = timer.performWithDelay(500, gameLoop, -1)
+
+local function restoreShip()
+	ship.isBodyActive = false
+	ship.x = display.contentCenterX
+	ship.y = display.contentHeight - 100
+
+	transition.to(ship, {alpha=1, time=4000, 
+	onComplete=function() ship.isBodyActive = true dead = false end}
+	)
+end
+
+local function onCollision(event)
+	local phase = event.phase
+	
+	if (phase == "began") then
+		local obj1 = event.object1
+		local obj2 = event.object2
+
+		if (obj1.myName == "laser" and obj2.myName == "asteroid") or (obj1.myName == "asteroid" and obj2.myName == "laser") then
+			display.remove(obj1)
+			display.remove(obj2)
+
+			for i=#asteroidsTable, 1, -1 do
+				if (asteroidsTable[i] == obj1) or (asteroidsTable[i] == obj2) then
+					table.remove(asteroidsTable, i)
+					break
+				end
+			end
+
+			score = score + 100
+			updateText()
+
+		elseif (obj1.myName == "ship" and obj2.myName == "asteroid") or (obj1.myName == "asteroid" and obj2.myName == "ship") then
+			if (dead == false) then
+				dead = true
+				lifes = lifes - 1
+				updateText()
+
+				if (lifes == 0) then
+					display.remove(ship)
+				else
+					transition.to(ship, {alpha=0, time=1000})
+					timer.performWithDelay(1000, restoreShip)
+				end
+			end
+		end
+	end
+end
+
+Runtime:addEventListener("collision", onCollision)
+
