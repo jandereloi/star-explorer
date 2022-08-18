@@ -60,6 +60,21 @@ local backGroup = display.newGroup()
 local mainGroup = display.newGroup()
 local uiGroup = display.newGroup()
 
+-- Audio settings
+local bgAudio = audio.loadStream("audio/80s-Space-Game_Looping.wav")
+audio.reserveChannels(1) -- Soundtrack channel
+audio.setVolume(0.05, {channel=1})
+audio.play(bgAudio, {channel=1, loops=-1})
+
+audio.reserveChannels(2,3,4) -- SFX channel
+audio.setVolume(0.8, {channel=2})
+audio.setVolume(0.8, {channel=3})
+audio.setVolume(0.8, {channel=4})
+
+local shootingSound = audio.loadSound("audio/fire.wav")
+local collisionSound = audio.loadSound("audio/explosion.wav")
+
+
 -- Background
 local bg = display.newImageRect(backGroup, "images/bg.png", 800, 1400)
 bg.x = display.contentCenterX
@@ -128,6 +143,8 @@ local function shipShooting()
 	newLaser.isBullet = true
 	newLaser.myName = "laser"	
 
+	audio.play(shootingSound, {channel=2})
+
 	newLaser.x = ship.x
 	newLaser.y = ship.y
 	newLaser:toBack()
@@ -189,6 +206,7 @@ local function onCollision(event)
 		local obj2 = event.object2
 
 		if (obj1.myName == "laser" and obj2.myName == "asteroid") or (obj1.myName == "asteroid" and obj2.myName == "laser") then
+			audio.play(collisionSound, {channel=3})
 			display.remove(obj1)
 			display.remove(obj2)
 
@@ -203,6 +221,8 @@ local function onCollision(event)
 			updateText()
 
 		elseif (obj1.myName == "ship" and obj2.myName == "asteroid") or (obj1.myName == "asteroid" and obj2.myName == "ship") then
+			audio.play(collisionSound, {channel=4})
+
 			if (dead == false) then
 				dead = true
 				lifes = lifes - 1
